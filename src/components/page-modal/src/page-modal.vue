@@ -1,0 +1,101 @@
+<template>
+  <div class="page-modal">
+    <el-dialog
+      title="新建用户"
+      v-model="dialogVisible"
+      width="30%"
+      center
+      destroy-on-close
+    >
+      <hy-form
+        ref="hyFormref"
+        v-bind="modalConfig"
+        v-model="formData"
+        :rules="rules"
+      ></hy-form>
+      <slot></slot>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="dialogVisible = false">取 消</el-button>
+          <el-button type="primary" @click="handleConfirmClick">
+            确 定
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script lang="ts" setup>
+import { withDefaults, defineProps, defineExpose, ref, watch } from 'vue'
+import { useStore } from 'vuex'
+
+import HyForm from '@/base-ui/form'
+
+type IObject = { [propName: string]: any; id?: number } //声明父组件传过来的数据以及类型
+type TData = {
+  modalConfig: IObject
+  rules?: IObject
+  defaultInfo?: IObject
+  otherInfo?: IObject
+  pageName?: string
+} //声明父组件传过来的数据以及类型
+const props = withDefaults(defineProps<TData>(), {
+  modalConfig: () => {
+    return {}
+  },
+  defaultInfo: () => {
+    return {}
+  },
+  otherInfo: () => {
+    return {}
+  },
+  rules: () => {
+    return {}
+  },
+  pageName: ''
+})
+
+const dialogVisible = ref(false)
+const formData = ref<any>({})
+const hyFormref = ref<InstanceType<typeof HyForm>>()
+
+watch(
+  () => props.defaultInfo,
+  (newValue) => {
+    for (const item of props.modalConfig.formItems) {
+      formData.value[`${item.field}`] = newValue[`${item.field}`]
+    }
+  }
+)
+
+// 点击确定按钮的逻辑
+const store = useStore()
+const handleConfirmClick = () => {
+  hyFormref.value!.formRef!.validate((valid) => {
+    if (valid) {
+      dialogVisible.value = false
+      if (Object.keys(props.defaultInfo).length) {
+        // 编辑
+        store.dispatch('system/editPageDataAction', {
+          pageName: props.pageName,
+          editData: { ...formData.value, ...props.otherInfo },
+          id: props.defaultInfo.id
+        })
+      } else {
+        // 新建
+        store.dispatch('system/createPageDataAction', {
+          pageName: props.pageName,
+          newData: { ...formData.value, ...props.otherInfo }
+        })
+      }
+    } else {
+      console.log('error submit!')
+      return false
+    }
+  })
+}
+defineExpose({ dialogVisible })
+</script>
+
+<style scoped></style>
